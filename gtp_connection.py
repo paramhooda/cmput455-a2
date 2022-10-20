@@ -10,6 +10,7 @@ at the University of Edinburgh.
 """
 import time
 import traceback
+from xmlrpc.client import boolean
 import numpy as np
 import re
 from sys import stdin, stdout, stderr
@@ -43,7 +44,7 @@ class GtpConnection:
             Represents the current board state.
         """
         self._debug_mode: bool = debug_mode
-        self.time_limit = 1
+        self.time_limit = 15
         self.go_engine = go_engine
         self.board: GoBoard = board
         self.commands: Dict[str, Callable[[List[str]], None]] = {
@@ -64,7 +65,6 @@ class GtpConnection:
             "gogui-rules_final_result": self.gogui_rules_final_result_cmd,
             "solve": self.solve_cmd,
             "timelimit": self.timelimit #add function
-        
         }
         self.timeLimit = 1
 
@@ -369,7 +369,7 @@ class GtpConnection:
         color = color_to_int(board_color)
         move = self.go_engine.get_move(self.board, color)
         if move is None:
-            self.respond('unknown')
+            self.respond('resign')
             return
             
         move_coord = point_to_coord(move, self.board.size)
@@ -383,23 +383,72 @@ class GtpConnection:
             
     def solve_cmd(self, args: List[str]) -> None:
         # remove this respond and implement this method
-        start_time=time.time()
-        while time.time()-start_time()<self.timeLimit:
-            current_player =self.board.current_player
-            move = self.genmove_cmd
+        # start_time=time.time()
+        transposition_table = TranspositionTable()
+        current_player =self.board.current_player
+        isWin, score_string = self.boolean_negamax(self.board, current_player, transposition_table)
+        self.board.last_move=None
+        self.board.last_move_color=None
+        if isWin:
+            self.respond(score_string)
+        # self.respond("")
+        # self.respond("unknown")
+        else:
+            self.respond(score_string)
+        
             #get current player
             #generate best move
             #play move
             #check if game is over
             #switch to next plauer
         
-    def timelimit(self,args: List[str])-> None:
-        #This method sets the timelimit. 
+    def timelimit(self,args):
+        
         assert 1 <= int(args[0]) <= 100
         self.time_limit = int(args[0])
         self.respond('')
         
+    def boolean_negamax(self, current_board, current_player, transposition_table):
+        board = current_board.copy()
+        board_score = str(board)
+        print(board_score)
+        res = transposition_table.lookup(board_score)
         
+        if res != None:
+            if res[0]==True:
+                print("retTT")
+                print("{} {}".format(res[0],res[1]).lower())
+                return True,"{} {}".format(res[0],res[1]).lower()
+            else:
+                print("retTT2")
+                return False,"{}".format(res[1]).lower()
+        else:
+            
+
+            for move in board.get_empty_points():
+                if not board.is_legal(move,current_player):
+                    continue
+                board.play_move(move, current_player)
+                (score, score_string) = self.boolean_negamax(board, current_player, transposition_table)
+                score = not score
+                transposition_table.store(current_board, (score,score_string))
+                if score:
+                    player_color = "b" if current_player==BLACK else "w"
+                    
+                    final_move = format_point(point_to_coord(move, board.size))
+                    
+                    print("lastmove",final_move)
+                    
+                    
+                    print("ret2")
+                    return True,"{} {}".format(player_color,final_move).lower()
+
+                
+            
+            print("returnResign@")
+            return False,"resign"
+            
+    
 
     """
     ==========================================================================
@@ -447,3 +496,25 @@ def color_to_int(c: str) -> int:
     """convert character to the appropriate integer code"""
     color_to_int = {"b": BLACK, "w": WHITE, "e": EMPTY, "BORDER": BORDER}
     return color_to_int[c]
+
+
+
+class TranspositionTable(object):
+# Table is stored in a dictionary, with board code as key, 
+# and minimax score as the value
+
+    # Empty dictionary
+    def __init__(self):
+        self.table = {}
+
+    # Used to print the whole table with print(tt)
+    def __repr__(self):
+        return self.table.__repr__()
+        
+    def store(self, code, score):
+        code = str(code)
+        self.table[code] = score
+    
+    # Python dictionary returns 'None' if key not found by get()
+    def lookup(self, code):
+        return self.table.get(code)

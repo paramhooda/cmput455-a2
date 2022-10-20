@@ -42,6 +42,8 @@ For many more utility functions, see the GoBoardUtil class in board_util.py.
 The board is stored as a one-dimensional array of GO_POINT in self.board.
 See GoBoardUtil.coord_to_point for explanations of the array encoding.
 """
+
+
 class GoBoard(object):
     def __init__(self, size: int):
         """
@@ -61,6 +63,14 @@ class GoBoard(object):
         self.maxpoint: int = board_array_size(size)
         self.board: np.ndarray[GO_POINT] = np.full(self.maxpoint, BORDER, dtype=GO_POINT)
         self._initialize_empty_points(self.board)
+        self.transposition_table = {}
+        self.lastMove = None
+        self.lastMoveColour = None
+    
+    
+    def getLastMove(self):
+        return self.lastMove, self.lastMoveColour
+
         
         
     def copy(self) -> 'GoBoard':
@@ -260,3 +270,10 @@ class GoBoard(object):
         """
         board_moves: List[GO_POINT] = []
         return board_moves
+    
+    def get_empty_points(self):
+        """
+        Return:
+            The empty points on the board
+        """
+        return where1d(self.board == EMPTY)
