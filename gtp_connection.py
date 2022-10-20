@@ -43,6 +43,7 @@ class GtpConnection:
             Represents the current board state.
         """
         self._debug_mode: bool = debug_mode
+        self.time_limit = 1
         self.go_engine = go_engine
         self.board: GoBoard = board
         self.commands: Dict[str, Callable[[List[str]], None]] = {
@@ -393,16 +394,10 @@ class GtpConnection:
             #switch to next plauer
         
     def timelimit(self,args: List[str])-> None:
-        DEAFULT=1 #default 1 second
-        if not args[0].isnumeric():
-            if int(args[0])<1 or int(args[0])>100:
-                self.respond('Please input a number between 1 and 100')
-                self.timeLimit = DEAFULT
-        #self.respond('Implement This')
-        else:
-            self.timeLimit=int(args[0])
-        
-        return self.timeLimit
+        #This method sets the timelimit. 
+        assert 1 <= int(args[0]) <= 100
+        self.time_limit = int(args[0])
+        self.respond('')
         
         
 
